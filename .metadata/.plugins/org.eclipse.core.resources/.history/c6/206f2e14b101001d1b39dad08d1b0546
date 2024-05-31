@@ -1,0 +1,49 @@
+public class SS
+{
+	private int yourturn;
+	
+	//コンストラクタ
+	SS()
+	{
+		
+	}
+	
+	//トランプをめくるかどうか
+	public boolean TurnTrump()
+	{
+		boolean turnflag = false;
+		
+		return turnflag;
+	}
+	
+	//2枚のトランプが一致しているかどうか
+	public boolean MatchTrump()
+	{
+		boolean matchflag = false;
+		
+		return matchflag;
+	}
+	
+	//特殊カードの処理
+	public void SpecialCard(int a)
+	{
+		
+	}
+	
+	//所持しているカード数の保持
+	public int YourCardNum()
+	{
+		int cardnum = 0;
+		
+		return cardnum;
+	}
+	
+	//ゲームを続行することが可能か
+	public boolean ContinueGame()
+	{
+		boolean continuegame = false;
+		
+		return continuegame;
+	}
+	
+}

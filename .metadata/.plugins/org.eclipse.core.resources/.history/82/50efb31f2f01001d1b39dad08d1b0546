@@ -1,0 +1,1144 @@
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.geom.AffineTransform;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.Random;
+
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+
+public class Client extends JFrame implements MouseListener
+{
+	private SS ss;// 神経衰弱クラスのオブジェクト
+	private Card card;
+	private Player player;
+	private static LoginInterface login;
+	private int port;
+	private int myturn;
+	private int cpunum = 3;
+	private boolean connectflag;
+	private Container c; // コンテナ
+	private JLabel turnLabel; // 手番表示用ラベル
+	private PrintWriter out;// データ送信用オブジェクト
+	private Receiver receiver; // データ受信用オブジェクト
+	
+	//コンストラクタ
+	Client(Card card, SS ss, Player player)
+	{
+		this.card = card;
+		this.ss = ss;
+		this.player = player;
+		
+		
+		
+		//String[][] board = ss.getBoard(); // getGridメソッドにより局面情報を取得
+		
+		// ウィンドウ設定
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);// ウィンドウを閉じる場合の処理
+		setTitle("神経衰弱ゲーム");// ウィンドウのタイトル（暫定）
+		setSize(800, 600);// ウィンドウのサイズを設定（暫定）
+		c = getContentPane();// フレームのペインを取得
+		// アイコン設定(画像ファイルをアイコンとして使う)
+		c.setLayout(null);
+		// 盤面の生成
+		c.setVisible(true);
+		
+	}
+	
+	// サーバに接続するメソッド
+	public boolean connectServer(String ipAddress, int port)
+	{
+		Socket socket = null;
+		try
+		{
+			socket = new Socket(ipAddress, port); // サーバ(ipAddress, port)に接続
+			out = new PrintWriter(socket.getOutputStream(), true); // データ送信用オブジェクトの用意
+			// 受信用オブジェクトを用意
+			// ここで、ハンデレベルと先手後手情報を受け取る
+			receiver = new Receiver(socket);
+
+			// 受信用オブジェクトのスレッドを起動する
+			receiver.start();
+			
+			return true;
+		}
+		catch(UnknownHostException e)
+		{
+			System.err.println("ホストのIPアドレスが判定できません: " + e);
+			return false;
+		}
+		catch(IOException e)
+		{
+			System.err.println("サーバ接続時にエラーが発生しました: " + e);
+			return false;
+		}
+	}
+	
+	//情報の送受信を行う内部クラス
+	class Receiver extends Thread
+	{
+		private InputStreamReader sisr; // 受信データ用文字ストリーム
+		private BufferedReader br; // 文字ストリーム用のバッファ
+		
+			//コンストラクタ
+			Receiver(Socket socket)
+			{
+				try
+				{
+					sisr = new InputStreamReader(socket.getInputStream()); // 受信したバイトデータを文字ストリームに
+					br = new BufferedReader(sisr);// 文字ストリームをバッファリングする
+				}
+				catch (IOException e)
+				{
+					System.err.println("データ受信時にエラーが発生しました: " + e);
+				}
+			}
+
+			// 内部クラス Receiverのrunメソッド
+			public void run()
+			{
+
+				// 最初は手番を受け取るための無限ループを行う
+				try
+				{
+					// 手番情報を受け取るための無限ループ
+					String myturninfo;
+					while (true)
+					{
+						myturninfo = br.readLine();// 受信データを一行分読み込む
+						
+						if (myturninfo != null)
+						{// データを受信したら
+							myturn = Integer.parseInt(myturninfo);
+							System.out.println("クライアントは自分の手番が " + myturn + " 番目であると受信しました");
+							player.setTurnNum(myturn);	
+							System.out.println(myturn);
+							break; // 無限ループを抜ける
+						}
+
+					}
+				}
+				catch (IOException e)
+				{
+					System.err.println("データ受信時にエラーが発生しました: " + e);
+				}
+
+				// 盤面を更新
+				UpdateDisplay();
+
+				try
+				{
+					String inputLine;
+					while (true)
+					{// データを受信し続ける
+						inputLine = br.readLine();// 受信データを一行分読み込む
+						
+						if (inputLine != null)
+						{// データを受信したら
+							
+							if(inputLine.equals("disconnect"))
+							{
+								System.out.println("対戦相手の接続が切れました。");
+								turnLabel.setForeground(Color.red);
+								turnLabel.setText("対戦相手の接続が切れました。");
+								login.loginfail.setVisible(true);
+								break;
+							}
+													
+							receiveMessage(inputLine);// データ受信用メソッドを呼び出す
+						}
+					}
+				}
+				catch (IOException e)
+				{
+					System.err.println("データ受信時にエラーが発生しました: " + e);
+				}
+			}
+		}
+	
+	//盤面の更新
+	public void UpdateDisplay()
+	{
+		
+	}
+	
+	//結果画面
+	public void ResultInterface()
+	{
+		
+	}
+	
+	
+	// サーバから操作情報を受信したときに使われるメソッドreceiveMessage
+	public void receiveMessage(String msg)
+	{
+		System.out.println("サーバからメッセージ " + msg + " を受信しました"); // テスト用標準出力
+	
+	}
+	
+	// 内部クラスLogin
+	class LoginInterface extends JFrame
+	{
+		
+		Match match;
+		Rules rules;
+		Wait wait;
+		Choice choice;
+		Loginfail loginfail;
+		Game game;
+
+		String serverIP;
+		int port;
+
+		// 内部クラスLoginのコンストラクタ
+		LoginInterface(String serverIP, int port)
+		{
+			// 引数を与える
+			this.serverIP = serverIP;
+			this.port = port;
+			
+			match = new Match("Match");
+			rules = new Rules("Rules");
+			loginfail = new Loginfail("Loginfail");
+		}
+		
+		class Match extends JFrame
+		{
+			
+		    JLabel label;
+		    JTextField tf = new JTextField(16);
+		    JLabel label2 = new JLabel("");
+		    JButton b2 = new JButton("ログイン");
+		    JButton b1 = new JButton("遊び方");
+
+		    Match(String title)
+		    {
+		            super(title);
+		            JPanel c = (JPanel)getContentPane();
+		            
+		            c.setLayout(null);
+		            
+		            c.setBackground(new Color(34,139,34));
+		            
+		            label = new JLabel("神経衰弱");
+		            label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 60)));
+		            label.setBounds(250,100,300,60);
+		            label.setHorizontalAlignment(JLabel.CENTER);
+		            c.add(label);
+		            
+		            label = new JLabel("名前を入力してください");
+		            label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 15)));
+		            label.setBounds(200,240,400,40);
+		            label.setHorizontalAlignment(JLabel.CENTER);
+		            c.add(label);
+		            
+		            
+		            tf.setBounds(230,300,300,30);
+		            tf.setHorizontalAlignment(JTextField.CENTER);
+		            c.add(tf);
+		            
+		            
+		            b1.setBounds(340,400,80,30);
+		            b1.addActionListener(new myListener1());
+		            c.add(b1);
+		            
+		            
+		            b2.setBounds(330,450,100,30);
+		            b2.addActionListener(new myListener2());
+		            c.add(b2);
+		            
+		            setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		            setVisible(true);
+		            setSize(800, 600);
+		    }
+		    
+		    public class myListener1 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		            setVisible(false);
+		            rules.setVisible(true);
+		        }
+		    }
+		    
+		    public class myListener2 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		String cmd = tf.getText(); // テキストフィールドに入力されている文字列を取得
+
+					// テキストフィールドに何も入力されていない場合
+					if (cmd.equals("") == true)
+					{
+						// 専用のメッセージを表示
+						label.setForeground(Color.red);
+						label.setText("ログイン名が入力されていません");
+					}
+					// テキストフィールドに名前が入力されている場合
+					else
+					{
+						player.setName(cmd);
+						boolean cs = connectServer(serverIP, port);
+						// サーバに繋がらなかった場合
+						if(cs == false)
+						{
+							label.setForeground(Color.red);
+							label.setText("接続に失敗しました。もう一度ログインしてください。");
+						}
+						else
+						{
+							myturn = player.getTurnNum();
+							System.out.println("b" + myturn);
+							wait = new Wait("Wait");
+							setVisible(false);
+							wait.setVisible(true);
+						}
+					}
+		        }
+		    }
+		}
+		
+		class Rules extends JFrame
+		{
+			
+		    JLabel label;
+		    JButton b1 = new JButton("ログイン画面に戻る");
+
+		    Rules(String title)
+		    {
+		            super(title);
+		            JPanel c = (JPanel)getContentPane();
+		            
+		            c.setLayout(null);
+		            
+		            c.setBackground(new Color(34,139,34));
+		            
+		            label = new JLabel("遊び方（ルール説明）");
+		            label.setBounds(150,40,550,100);
+		            label.setFont(new Font("ＭＳ ゴシック", Font.BOLD, 50));
+		            label.setHorizontalAlignment(JLabel.CENTER);
+		            label.setForeground(Color.white);
+		            c.add(label);
+		            
+		            label = new JLabel("<html>ここに特殊カードの説明を入れる。<br>"
+		            		+ "2枚揃うと機能が発動する。");
+		            label.setBounds(200,100,500,200);
+		            label.setFont(new Font("ＭＳ ゴシック", Font.PLAIN, 20));
+		            label.setForeground(Color.white);
+		            c.add(label);
+		            
+		            
+		            label = new JLabel("<html>・シャッフルカード – カードの位置を入れ替える<br>"
+		            		+ "・スペシャルカード – 得点が〇倍になる<br>"
+		            		+ "・リバースカード – 対戦の順序が逆回りになる<br>"
+		            		+ "・スキップカード – 次の人を飛ばして対戦が進む<br>"
+		            		+ "・持ちカード交換 – 取得カードを交換する<br>"
+		            		+ "");
+		            label.setBounds(200,250,400,200);
+		            label.setFont(new Font("ＭＳ ゴシック", Font.PLAIN, 17));
+		            label.setHorizontalAlignment(JLabel.CENTER);
+		            label.setForeground(Color.white);
+		            c.add(label);
+		            
+		            
+		            b1.setBounds(250,450,300,50);
+		            b1.setFont(new Font("ＭＳ ゴシック", Font.PLAIN, 20));
+		            b1.addActionListener(new myListener1());
+		            c.add(b1);
+		            
+		            
+		            setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		            setSize(800, 600);
+		    }
+		    
+		    public class myListener1 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		setVisible(false);
+		            match.setVisible(true);
+		        }
+		    }
+		    
+		}
+
+		public class Wait extends JFrame
+		{
+			
+			JLabel label;
+			JButton b1 = new JButton("始める");
+			
+			public Wait(String title)
+			{
+				super(title);
+				
+				JPanel c = (JPanel)getContentPane();
+				
+				c.setLayout(null);
+				
+				c.setBackground(new Color (34, 139, 34));
+				
+				label = new JLabel("神経衰弱");
+				label.setBounds(270, 50, 260, 150);
+				label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 60)));
+				c.add(label);
+				
+				label = new JLabel("現在の接続人数:"+ 0 +"人");
+				label.setBounds(250, 180, 300, 100);
+				label.setHorizontalAlignment(JLabel.CENTER);
+				label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 30)));
+				c.add(label);
+				
+				label = new JLabel("対戦相手を探しています");
+				label.setBounds(200, 270, 400, 100);
+				label.setHorizontalAlignment(JLabel.CENTER);
+				label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 30)));
+				c.add(label);
+				
+				if(myturn == 1)
+				{
+					label = new JLabel("あなたはホストです。このまま追加メンバーを待ちますか？");
+					label.setBounds(150, 320, 500, 100);
+					label.setHorizontalAlignment(JLabel.CENTER);
+					label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 20)));
+					c.add(label);
+					
+					b1.setBounds(350, 430, 100, 50);
+					b1.addActionListener(new myListener1());
+					c.add(b1);
+				}
+				else
+				{
+					//対戦画面へ遷移
+				}
+				
+				setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+				setSize(800, 600);
+			}
+			
+			public class myListener1 implements ActionListener
+			{
+				public void actionPerformed(ActionEvent e)
+				{
+					choice = new Choice("Choice");
+					setVisible(false);
+		    		choice.setVisible(true);
+				}
+			}
+
+		}
+		
+		class Choice extends JFrame
+		{
+			boolean []bflag = new boolean[9];
+		    JLabel label;
+		    JLabel label2 = new JLabel("");
+		    JButton []b1 = new JButton[3];
+		    {
+		    	b1[0] = new JButton("弱い");
+		    	b1[1] = new JButton("弱い");
+		    	b1[2] = new JButton("弱い");
+		    }
+		    JButton []b2 = new JButton[3];
+		    {
+			    b2[0] = new JButton("ふつう");
+				b2[1] = new JButton("ふつう");
+				b2[2] = new JButton("ふつう");
+		    }
+		    JButton []b3 = new JButton[3];
+		    {
+			    b3[0] = new JButton("強い");
+				b3[1] = new JButton("強い");
+				b3[2] = new JButton("強い");
+		    }
+		    JButton b4 = new JButton("決定");
+
+		    Choice(String title)
+		    {
+		            super(title);
+		            JPanel c = (JPanel)getContentPane();
+		            
+		            c.setLayout(null);
+		            c.setBackground(new Color(34,139,34));
+		            
+		            label = new JLabel("CPUのレベルを決めてください");
+		            label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 40))); 
+		            label.setBounds(120,80,600,40);
+		            c.add(label);
+		            
+		            bflag[0] = true;
+		            bflag[1] = false;
+		            bflag[2] = false;
+		            bflag[3] = true;
+		            bflag[4] = false;
+		            bflag[5] = false;
+		            bflag[6] = true;
+		            bflag[7] = false;
+		            bflag[8] = false;
+		            
+		            int i;
+		            
+		            for(i = 0; i < cpunum; i++)
+		            {
+			            label = new JLabel("CPU" + (i + 1));
+			            label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 40))); 
+			            label.setBounds(130,200+(i)*80,300,40);
+			            c.add(label);
+			            
+			            b1[i].setBounds(260,200+(i)*80,80,40);
+			            b1[i].setForeground(Color.black);
+			            if(i == 0)
+			            {
+			            	b1[i].addActionListener(new myListener0());
+			            }
+			            else if(i == 1)
+			            {
+			            	b1[i].addActionListener(new myListener3());
+			            }
+			            else if(i == 2)
+			            {
+			            	b1[i].addActionListener(new myListener6());
+			            }
+			            c.add(b1[i]);
+			            
+			            b2[i].setBounds(390,200+(i)*80,80,40);
+			            b2[i].setForeground(Color.gray);
+			            if(i == 0)
+			            {
+			            	b2[i].addActionListener(new myListener1());
+			            }
+			            else if(i == 1)
+			            {
+			            	b2[i].addActionListener(new myListener4());
+			            }
+			            else if(i == 2)
+			            {
+			            	b2[i].addActionListener(new myListener7());
+			            }
+			            c.add(b2[i]);
+			            
+			            b3[i].setBounds(520,200+(i)*80,80,40);
+			            b1[i].setForeground(Color.gray);
+			            if(i == 0)
+			            {
+			            	b3[i].addActionListener(new myListener2());
+			            }
+			            else if(i == 1)
+			            {
+			            	b3[i].addActionListener(new myListener5());
+			            }
+			            else if(i == 2)
+			            {
+			            	b3[i].addActionListener(new myListener8());
+			            }
+			            c.add(b3[i]);
+		            }
+		            
+		            
+		            b4.setBounds(350,480,100,40);
+		            b4.addActionListener(new myListener());
+		            c.add(b4);
+		            
+		            
+		            setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		            setSize(800, 600);
+		    }
+
+		    public class myListener implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		if(cpunum == 1)
+		    		{
+		    			if(bflag[0] == true && bflag[1] == false && bflag[2] == false)//CPU1：弱い
+		    			{
+		    				out.println(11);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			else if(bflag[0] == false && bflag[1] == true && bflag[2] == false)//CPU1：ふつう
+		    			{
+		    				out.println(12);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			else if(bflag[0] == false && bflag[1] == false && bflag[2] == true)//CPU1：強い
+		    			{
+		    				out.println(13);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    		}
+		    		else if(cpunum == 2)
+		    		{
+		    			if(bflag[0] == true && bflag[1] == false && bflag[2] == false)//CPU1：弱い
+		    			{
+		    				out.println(11);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			else if(bflag[0] == false && bflag[1] == true && bflag[2] == false)//CPU1：ふつう
+		    			{
+		    				out.println(12);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			else if(bflag[0] == false && bflag[1] == false && bflag[2] == true)//CPU1：強い
+		    			{
+		    				out.println(13);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			
+		    			if(bflag[3] == true && bflag[4] == false && bflag[5] == false)//CPU2：弱い
+		    			{
+		    				out.println(21);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			else if(bflag[3] == false && bflag[4] == true && bflag[5] == false)//CPU2：ふつう
+		    			{
+		    				out.println(22);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			else if(bflag[3] == false && bflag[4] == false && bflag[5] == true)//CPU2：強い
+		    			{
+		    				out.println(23);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    		}
+		    		else if(cpunum == 3)
+		    		{
+		    			if(bflag[0] == true && bflag[1] == false && bflag[2] == false)//CPU1：弱い
+		    			{
+		    				out.println(11);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			else if(bflag[0] == false && bflag[1] == true && bflag[2] == false)//CPU1：ふつう
+		    			{
+		    				out.println(12);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			else if(bflag[0] == false && bflag[1] == false && bflag[2] == true)//CPU1：強い
+		    			{
+		    				out.println(13);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			
+		    			if(bflag[3] == true && bflag[4] == false && bflag[5] == false)//CPU2：弱い
+		    			{
+		    				out.println(21);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			else if(bflag[3] == false && bflag[4] == true && bflag[5] == false)//CPU2：ふつう
+		    			{
+		    				out.println(22);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			else if(bflag[3] == false && bflag[4] == false && bflag[5] == true)//CPU2：強い
+		    			{
+		    				out.println(23);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			
+		    			if(bflag[6] == true && bflag[7] == false && bflag[8] == false)//CPU3：弱い
+		    			{
+		    				out.println(31);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			else if(bflag[6] == false && bflag[7] == true && bflag[8] == false)//CPU3：ふつう
+		    			{
+		    				out.println(32);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    			else if(bflag[6] == false && bflag[7] == false && bflag[8] == true)//CPU3：強い
+		    			{
+		    				out.println(33);
+		    				out.flush();
+		    				game.setVisible(true);
+		    			}
+		    		}
+		        }
+		    }
+		    
+		    public class myListener0 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		b1[0].setForeground(Color.black);
+		    		b2[0].setForeground(Color.gray);
+		    		b3[0].setForeground(Color.gray);
+		    		
+		    		bflag[0] = true;
+		    		bflag[1] = false;
+		    		bflag[2] = false;
+		        }
+		    }
+		    
+		    public class myListener1 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		b1[0].setForeground(Color.gray);
+		    		b2[0].setForeground(Color.black);
+		    		b3[0].setForeground(Color.gray);
+		    		
+		    		bflag[0] = false;
+		    		bflag[1] = true;
+		    		bflag[2] = false;
+		        }
+		    }
+		    
+		    public class myListener2 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		b1[0].setForeground(Color.gray);
+		    		b2[0].setForeground(Color.gray);
+		    		b3[0].setForeground(Color.black);
+		    		
+		    		bflag[0] = false;
+		    		bflag[1] = false;
+		    		bflag[2] = true;
+		        }
+		    }
+		    
+		    public class myListener3 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		b1[1].setForeground(Color.black);
+		    		b2[1].setForeground(Color.gray);
+		    		b3[1].setForeground(Color.gray);
+		    		
+		    		bflag[3] = true;
+		    		bflag[4] = false;
+		    		bflag[5] = false;
+		        }
+		    }
+		    
+		    public class myListener4 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		b1[1].setForeground(Color.gray);
+		    		b2[1].setForeground(Color.black);
+		    		b3[1].setForeground(Color.gray);
+		    		
+		    		bflag[3] = false;
+		    		bflag[4] = true;
+		    		bflag[5] = false;
+		        }
+		    }
+		    
+		    public class myListener5 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		b1[1].setForeground(Color.gray);
+		    		b2[1].setForeground(Color.black);
+		    		b3[1].setForeground(Color.gray);
+		    		
+		    		bflag[3] = false;
+		    		bflag[4] = false;
+		    		bflag[5] = true;
+		        }
+		    }
+		    
+		    public class myListener6 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		b1[2].setForeground(Color.black);
+		    		b2[2].setForeground(Color.gray);
+		    		b3[2].setForeground(Color.gray);
+		    		
+		    		bflag[6] = true;
+		    		bflag[7] = false;
+		    		bflag[8] = false;
+		        }
+		    }
+		    
+		    public class myListener7 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		b1[2].setForeground(Color.gray);
+		    		b2[2].setForeground(Color.black);
+		    		b3[2].setForeground(Color.gray);
+		    		
+		    		bflag[6] = false;
+		    		bflag[7] = true;
+		    		bflag[8] = false;
+		        }
+		    }
+		
+		    public class myListener8 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		b1[2].setForeground(Color.gray);
+		    		b2[2].setForeground(Color.gray);
+		    		b3[2].setForeground(Color.black);
+		    		
+		    		bflag[6] = false;
+		    		bflag[7] = false;
+		    		bflag[8] = true;
+		        }
+		    }
+		    
+		}
+		
+		class Loginfail extends JFrame
+		{
+		    JLabel label;
+		    JButton b = new JButton("OK");
+
+		    
+		    Loginfail(String title)
+		    {
+		        super(title);
+		        JPanel c = (JPanel)getContentPane();
+		        
+		        c.setLayout(null);
+		        
+		        c.setBackground(new Color(34,139,34));
+		        
+		        label = new JLabel("神経衰弱");
+		        label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 60)));
+	            label.setBounds(250,100,300,60);
+	            label.setHorizontalAlignment(JLabel.CENTER);
+		        c.add(label);
+		        
+		        label = new JLabel("ログインに失敗しました");
+		        label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 20)));
+	            label.setBounds(250,200,300,60);
+	            label.setHorizontalAlignment(JLabel.CENTER);
+		        c.add(label);
+		        
+		        label = new JLabel("ログイン画面に戻ります。");
+		        label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 20)));
+	            label.setBounds(250,260,300,60);
+	            label.setHorizontalAlignment(JLabel.CENTER);
+		        c.add(label);
+		        
+		        b.setBounds(350,400,100,50);
+		        b.addActionListener(new myListener1());
+		        c.add(b);
+		        
+		        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		        setSize(800, 600);
+		}
+		    
+		    public class myListener1 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		setVisible(false);
+		    		match.setVisible(true);
+		        }
+		    }			
+
+		}
+		
+		
+		
+		public class DrawCanvas extends JPanel
+		{
+			Image img = Toolkit.getDefaultToolkit().getImage("back.png");
+			public void paintComponent(Graphics g)
+			{
+				super.paintComponent(g);
+		 
+				Graphics2D g2 = (Graphics2D)g;
+				AffineTransform at = g2.getTransform();
+		 
+				//50度回転させます。
+				at.setToRotation(Math.toRadians(50));
+				g2.setTransform(at);
+		 
+				g2.drawImage(img, 0, 0, this);
+			}
+		}
+
+		public class Game extends JFrame
+		{
+			
+		    JLabel label;
+		    JLabel label2 = new JLabel("");
+		    ImageIcon icon1;
+		    JButton b2 = new JButton("特殊カードルール");
+		    JButton b1 = new JButton("遊び方");
+		    int count = 0;
+		    
+		    Game(String title)
+		    {
+		    	
+		    	JPanel c = (JPanel)getContentPane();
+		    	c.setLayout(null);
+		    	
+		    	int[] num;
+		    	num = new int[100];
+		    	
+		    	int n = 0;
+		    	int size = 64;
+		    	
+		    	while(n < size)
+		    	{
+			    	Random rand = new Random();
+			        int A = rand.nextInt(100);
+			        if(num[A]==0)
+			        {	
+			        	num[A] = 1;
+			        	n++;
+			        }
+		    	}
+		    	
+		    	int l=0;
+		    	
+		    	for(int m=0;m<100;m++)
+		    	{
+		    		System.out.print(num[m]);
+		    		if(l%10==0)	System.out.println("");
+		    		l++;
+		    	}
+		    	
+		    	int f=0;
+		    	
+		    	icon1 = new ImageIcon("back.png");
+		    	Image smallImg = icon1.getImage().getScaledInstance((int) (icon1.getIconWidth() * 0.05), -1,Image.SCALE_SMOOTH);
+		    	ImageIcon smallIcon = new ImageIcon(smallImg);
+		    	    	
+		    	JButton []labels = new JButton[64];
+		    	
+		    	
+		    	for(n=1;n<=10;n++)
+		    	{
+		    		for(int m=1;m<=10;m++)
+		    		{
+			            label = new JLabel("C");
+			            label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 20))); 
+				        if(num[f]==1)
+				        {    
+				        	
+				        	labels[count] = new JButton(smallIcon);
+				        	Random rand = new Random();
+				        	int B = rand.nextInt(25);
+			            	labels[count].setBounds(30+(m)*60+B,(n)*50+B,40,60);
+				            c.add(labels[count]);
+				            labels[count].addActionListener
+			                (new ActionListener()
+			                {
+			                	public void actionPerformed(ActionEvent e)
+			                	{
+			                		int a = 0;
+			                		//アクションを入れる
+			                		int []c = new int[100];
+			                		c[a] = count;
+			                		System.out.println(c[a]);
+			                		a++;
+			                		
+			                	}
+			                }
+			                );
+				            
+				            count++;
+				            
+				        }
+				        f++;
+		    		}
+		        }
+		    	
+		            
+		            c.setLayout(null);
+		            c.setBackground(new Color(34,139,34));
+		            
+		            int num1 = 3;
+		            
+		            for(int o=0;o<4;o++) {
+		                String pt = String.valueOf(num1);
+		                label = new JLabel(pt+"pt");
+		                label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 40)));
+		                label.setBounds(50+(o+1)*100,600,500,40);
+		                c.add(label);
+		                
+		                String Playernum = String.valueOf(num1);
+		                label = new JLabel("Player"+Playernum);
+		                label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 40)));
+		                label.setBounds(5+(o+1)*1000,650,500,40);
+		                c.add(label);
+		            }
+		            
+		            
+		            
+		            String turn = String.valueOf(num1);
+		            label = new JLabel("ターン"+turn);
+		            label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 40)));
+		            label.setBounds(225,40,500,40);
+		            c.add(label);
+		            
+		            
+		            String Plnum = String.valueOf(num1);
+		            label = new JLabel("Player"+Plnum+"の番です");
+		            label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 40)));
+		            label.setBounds(225,40,500,40);
+		            c.add(label);
+		            
+		            
+		            String sec = String.valueOf(num1);
+		            label = new JLabel("残り"+sec+"秒です");
+		            label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 40)));
+		            label.setBounds(225,40,500,40);
+		            c.add(label);
+		            
+		            
+		            String card = String.valueOf(num1);
+		            label = new JLabel("カード残り"+card+"枚です");
+		            label.setFont((new Font(Font.DIALOG_INPUT, Font.BOLD, 40)));
+		            label.setBounds(225,40,500,40);
+		            c.add(label);
+		            
+		            b1.setBounds(600,500,60,20);
+		            b1.addActionListener(new myListener1());
+		            c.add(b1);
+		            
+		            b2.setBounds(600,600,60,20);
+		            b2.addActionListener(new myListener2());
+		            c.add(b2);
+		            
+		            
+		            setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		            setSize(900, 720);
+		    }
+
+		    public class myListener1 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		
+		    	}
+		    }
+		    
+		    public class myListener2 implements ActionListener
+		    {
+		    	public void actionPerformed(ActionEvent e)
+		    	{
+		    		
+		        }
+		    }
+		}
+		
+		
+		
+		/*
+		// true を与えるとボタンが押せるようになり、false を与えるとボタンを押せなくなるメソッド
+		public void allEnabled(boolean f)
+		{
+			nameTF.setEditable(f);
+			nameButton.setEnabled(f);
+			okButton.setEnabled(f);
+			handCombobox.setEnabled(f);
+		}
+		*/
+		
+		
+	}
+	
+	// マウスクリック時の処理
+	public void mouseClicked(MouseEvent e)
+	{
+		JButton theButton = (JButton) e.getComponent();// クリックしたオブジェクトを得る．キャストを忘れずに
+		String command = theButton.getActionCommand();// ボタンの名前を取り出す
+		System.out.println("マウスがクリックされました。押されたボタンは " + command + "です。");
+		
+		/*
+		// 自分の手番かつ、クリックしたマスにコマを置くことのできる場合 → 盤面情報を更新し、操作情報をサーバへ送る
+		if (((player.getColor().equals(game.getTurn())) == true))
+		{
+			if(game.putStone(Integer.parseInt(command), game.getTurn()) == true)
+			{
+				// 盤面情報の更新
+				UpdateDisplay();
+		
+				// 操作情報をサーバに送る
+				sendMessage(command);
+				
+			}
+			else if(game.putStone(Integer.parseInt(command), game.getTurn()) == false)
+			{
+				
+				turnLabel.setForeground(Color.blue);
+				turnLabel.setText("その場所に石を置くことはできません");
+			}
+		}
+		*/
+	}
+	
+	public void mouseEntered(MouseEvent e)
+	{
+		
+	}// マウスがオブジェクトに入ったときの処理
+
+	public void mouseExited(MouseEvent e)
+	{
+		
+	}// マウスがオブジェクトから出たときの処理
+
+	public void mousePressed(MouseEvent e)
+	{
+		
+	}// マウスでオブジェクトを押したときの処理
+
+	public void mouseReleased(MouseEvent e)
+	{
+		
+	}// マウスで押していたオブジェクトを離したときの処理
+	
+
+	public static void main(String[] args)
+	{
+		// プレイヤオブジェクトの用意
+		Player player = new Player();
+
+		Card card = new Card();
+		
+		// オセロオブジェクトの用意
+		SS ss = new SS();
+
+		// クライアントオブジェクトの用意
+		Client oclient = new Client(card, ss, player); // 引数としてオセロオブジェクト、プレイヤオブジェクトを渡す
+
+		// Login オブジェクトの用意
+		login = oclient.new LoginInterface(args[0], 10000);// サーバのIPアドレス、ポート番号を与える
+	}
+
+}

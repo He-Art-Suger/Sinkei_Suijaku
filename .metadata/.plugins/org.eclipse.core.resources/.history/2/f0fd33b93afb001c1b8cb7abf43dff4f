@@ -1,0 +1,216 @@
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.event.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.Socket;
+
+import javax.swing.*;
+
+public class Client extends JFrame implements MouseListener
+{
+	private SS ss;// 神経衰弱クラスのオブジェクト
+	private Player player;
+	private int connectnum;
+	private int port;
+	private boolean connectflag;
+	private Container c; // コンテナ
+	
+	//コンストラクタ
+	Client(SS ss, Player player)
+	{
+		this.ss = ss;
+		this.player = player;
+
+		
+		
+		//String[][] board = ss.getBoard(); // getGridメソッドにより局面情報を取得
+		
+		// ウィンドウ設定
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);// ウィンドウを閉じる場合の処理
+		setTitle("神経衰弱ゲーム");// ウィンドウのタイトル（暫定）
+		setSize(800, 600);// ウィンドウのサイズを設定（暫定）
+		c = getContentPane();// フレームのペインを取得
+		// アイコン設定(画像ファイルをアイコンとして使う)
+		c.setLayout(null);//
+		// 盤面の生成
+		
+		
+	}
+	
+	//情報の送受信を行う内部クラス
+	class Receiver extends Thread
+	{
+		private InputStreamReader sisr; // 受信データ用文字ストリーム
+		private BufferedReader br; // 文字ストリーム用のバッファ
+		
+			//コンストラクタ
+			Receiver(Socket socket)
+			{
+				try
+				{
+					sisr = new InputStreamReader(socket.getInputStream()); // 受信したバイトデータを文字ストリームに
+					br = new BufferedReader(sisr);// 文字ストリームをバッファリングする
+				}
+				catch (IOException e)
+				{
+					System.err.println("データ受信時にエラーが発生しました: " + e);
+				}
+			}
+
+			// 内部クラス Receiverのrunメソッド
+			public void run()
+			{
+
+				// 最初はハンデレベルと自分の色を受け取るための無限ループを行う
+				try
+				{
+					// 手番情報を受け取るための無限ループ
+					String myturninfo;
+					int myturn;
+					while (true)
+					{
+						myturninfo = br.readLine();// 受信データを一行分読み込む
+						if (myturninfo != null)
+						{// データを受信したら
+							myturn = Integer.parseInt(myturninfo);
+							System.out.println("クライアントは自分の手番が " + myturn + " 番目であると受信しました");
+							player.setTurnNum(myturn);
+							setVisible(true); // 対局画面を表示
+							Login.setVisible(false); //ログイン画面の非表示
+							break; // 無限ループを抜ける
+						}
+
+					}
+				}
+				catch (IOException e)
+				{
+					System.err.println("データ受信時にエラーが発生しました: " + e);
+				}
+				
+				WaitDisplay(TurnNum);
+
+				// 盤面を更新
+				UpdateDisplay();
+
+				try
+				{
+					String inputLine;
+					while (true)
+					{// データを受信し続ける
+						inputLine = br.readLine();// 受信データを一行分読み込む
+						
+						if (inputLine != null)
+						{// データを受信したら
+							
+							if(inputLine.equals("disconnect"))
+							{
+								System.out.println("対戦相手の接続が切れました。");
+								turnLabel.setForeground(Color.red);
+								turnLabel.setText("対戦相手の接続が切れました。");
+								win();
+								break;
+							}
+													
+							receiveMessage(inputLine);// データ受信用メソッドを呼び出す
+						}
+					}
+				}
+				catch (IOException e)
+				{
+					System.err.println("データ受信時にエラーが発生しました: " + e);
+				}
+			}
+		}
+	
+	public void WaitDisplay(int TurnNum)
+	{
+		// 自分が1番手の場合→ホスト
+		if (TurnNum == 1)
+		{
+			//はじめるかどうか
+		}
+		// それ以外の手番場合
+		else
+		{
+			//待機画面
+		}
+	}
+	
+	//盤面の更新
+	public void UpdateDisplay()
+	{
+		
+	}
+	
+	//ログイン画面
+	public void LoginInterface()
+	{
+		
+	}
+	
+	//結果画面
+	public void ResultInterface()
+	{
+		
+	}
+	
+	
+	// マウスクリック時の処理
+	public void mouseClicked(MouseEvent e)
+	{
+		/*
+		JButton theButton = (JButton) e.getComponent();// クリックしたオブジェクトを得る．キャストを忘れずに
+		String command = theButton.getActionCommand();// ボタンの名前を取り出す
+		System.out.println("マウスがクリックされました。押されたボタンは " + command + "です。");
+
+		// 自分の手番かつ、クリックしたマスにコマを置くことのできる場合 → 盤面情報を更新し、操作情報をサーバへ送る
+		if (((player.getColor().equals(game.getTurn())) == true))
+		{
+			if(game.putStone(Integer.parseInt(command), game.getTurn()) == true)
+			{
+				// 盤面情報の更新
+				UpdateDisplay();
+		
+				// 操作情報をサーバに送る
+				sendMessage(command);
+				
+			}
+			else if(game.putStone(Integer.parseInt(command), game.getTurn()) == false)
+			{
+				
+				turnLabel.setForeground(Color.blue);
+				turnLabel.setText("その場所に石を置くことはできません");
+			}
+		}
+		*/
+	}
+	
+	public void mouseEntered(MouseEvent e)
+	{
+		
+	}// マウスがオブジェクトに入ったときの処理
+
+	public void mouseExited(MouseEvent e)
+	{
+		
+	}// マウスがオブジェクトから出たときの処理
+
+	public void mousePressed(MouseEvent e)
+	{
+		
+	}// マウスでオブジェクトを押したときの処理
+
+	public void mouseReleased(MouseEvent e)
+	{
+		
+	}// マウスで押していたオブジェクトを離したときの処理
+	
+
+	public static void main(String[] args)
+	{
+		
+	}
+
+}

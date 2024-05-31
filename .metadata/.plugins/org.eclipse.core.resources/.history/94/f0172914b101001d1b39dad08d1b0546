@@ -1,0 +1,133 @@
+
+public class CPU
+{
+	private int cpulevel;
+	private int cputurn;
+	private int cardmem[] = new int[100];
+	private Card card;
+	
+	//コンストラクタ
+	CPU(int cpulevel, int cputurn)
+	{
+		this.cpulevel = cpulevel;
+		this.cputurn = cputurn;
+	}
+	
+	//記憶するかどうかの関数
+		public void MemorySet(int a)
+		{
+			
+		}
+	
+	//記憶情報
+	public void MemoryInformation(int cardplaceinfo, int cardinfo)
+	{
+		
+		boolean memoryflag = false;
+		
+		if(cpulevel == 1)//よわい
+		{
+			if(Math.random() <= 0.3)
+			{
+				memoryflag = true;
+			}
+			else
+			{
+				memoryflag = false;
+			}
+		}
+		else if(cpulevel == 2)//普通
+		{
+			if(Math.random() <= 0.6)
+			{
+				memoryflag = true;
+			}
+			else
+			{
+				memoryflag = false;
+			}
+		}
+		else if(cpulevel == 3)//つよい
+		{
+			if(Math.random() <= 0.9)
+			{
+				memoryflag = true;
+			}
+			else
+			{
+				memoryflag = false;
+			}
+		}
+		
+		if(memoryflag == true)
+		{
+			cardmem[cardplaceinfo] = cardinfo;
+		}
+		
+		boolean forgetflag = false;
+		boolean forgetdo = false;
+		
+		if(cpulevel == 1)//よわい
+		{
+			if(Math.random() <= 0.3)
+			{
+				forgetflag = true;
+			}
+			else
+			{
+				forgetflag = false;
+			}
+		}
+		else if(cpulevel == 2)//普通
+		{
+			if(Math.random() <= 0.15)
+			{
+				forgetflag = true;
+			}
+			else
+			{
+				forgetflag = false;
+			}
+		}
+		else if(cpulevel == 3)//つよい
+		{
+			if(Math.random() <= 0.05)
+			{
+				forgetflag = true;
+			}
+			else
+			{
+				forgetflag = false;
+			}
+		}
+		
+		if(forgetflag == true)
+		{
+			while(forgetdo == false)
+			{
+				int randnum = (int)(100 * Math.random());
+				if(cardmem[randnum] != 0)
+				{
+					cardmem[randnum] = 0;
+					forgetdo = true;
+				}
+			}
+		}
+		
+	}
+	
+	//CPUの操作コマンド
+	public void Command()
+	{
+		
+	}
+	
+	//操作情報の送信
+	public int SendInformation()
+	{
+		int info = 0;
+		
+		return info; 
+	}
+
+}

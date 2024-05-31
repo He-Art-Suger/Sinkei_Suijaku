@@ -1,0 +1,195 @@
+import java.awt.*;
+import java.io.*;
+import java.net.*;
+
+import javax.swing.*;
+
+public class Client
+{
+	private SS ss;// 神経衰弱クラスのオブジェクト
+	private Player player;
+	private int connectnum;
+	private int port;
+	private boolean connectflag;
+	
+	//コンストラクタ
+	Client(SS ss, Player player)
+	{
+		this.ss = ss;
+		this.player = player;
+
+		
+		
+		String[][] board = ss.getBoard(); // getGridメソッドにより局面情報を取得
+		// ウィンドウ設定
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);// ウィンドウを閉じる場合の処理
+		setTitle("神経衰弱ゲーム");// ウィンドウのタイトル（暫定）
+		setSize(row * 45 + 10, row * 45 + 200);// ウィンドウのサイズを設定（暫定）
+		c = getContentPane();// フレームのペインを取得
+		// アイコン設定(画像ファイルをアイコンとして使う)
+		c.setLayout(null);//
+		// オセロ盤の生成
+		buttonArray = new JButton[row * row];// ボタンの配列を作成
+		for (int i = 0; i < row * row; i++)
+		{
+			if (board[i / row][i % row].equals("black")) {
+				buttonArray[i] = new JButton(blackIcon);
+			} // 盤面状態に応じたアイコンを設定
+					if (board[i / row][i % row].equals("white")) {
+						buttonArray[i] = new JButton(whiteIcon);
+					} // 盤面状態に応じたアイコンを設定
+					if (board[i / row][i % row].equals("empty")) {
+						buttonArray[i] = new JButton(emptyIcon);
+					} // 盤面状態に応じたアイコンを設定
+					c.add(buttonArray[i]);// ボタンの配列をペインに貼り付け
+					// ボタンを配置する
+					int x = (i % row) * 45;
+					int y = (int) (i / row) * 45;
+					buttonArray[i].setBounds(x, y, 45, 45);// ボタンの大きさと位置を設定する．
+					buttonArray[i].addMouseListener(this);// マウス操作を認識できるようにする
+					buttonArray[i].setActionCommand(Integer.toString(i));// ボタンを識別するための名前(番号)を付加する
+				}
+				// 強調表示切り替えボタン
+						highlight = true; // 最初は強調表示on
+						enable = new JButton("強調表示ON");// 強調表示切り替えを作成
+						c.add(enable); // ペインに貼り付け
+						enable.setBounds((row * 45 + 10) / 4, row * 45 + 30, (row * 45 + 10) / 2, 30);// 終了ボタンの境界を設定
+						enable.addMouseListener(this);// マウス操作を認識できるようにする
+						enable.setActionCommand("enable");// ボタンを識別するための名前を付加する
+						// ハンデ情報表示用ラベル
+						handLabel = new JLabel("");// ハンデ情報を表示するためのラベルを作成
+						handLabel.setBounds(10, row * 45, row * 45 + 10, 30);// 境界を設定
+						c.add(handLabel);// ペインに貼り付け
+						// 色表示用ラベル
+						colorLabel = new JLabel("待機中");// 色情報を表示するためのラベルを作成
+						colorLabel.setBounds(10, row * 45 + 60, row * 45 + 10, 30);// 境界を設定
+						c.add(colorLabel);// 色表示用ラベルをペインに貼り付け
+						// 手番表示用ラベル
+						turnLabel = new JLabel("");// 手番情報を表示するためのラベルを作成
+						turnLabel.setBounds(10, row * 45 + 120, row * 45 + 10, 30);// 境界を設定
+						c.add(turnLabel);// 手番情報ラベルをペインに貼り付け
+	}
+	
+	//情報の送受信を行う内部クラス
+	class Receiver extends Thread
+	{
+		private InputStreamReader sisr; // 受信データ用文字ストリーム
+		private BufferedReader br; // 文字ストリーム用のバッファ
+		
+			//コンストラクタ
+			Receiver(Socket socket)
+			{
+				try
+				{
+					sisr = new InputStreamReader(socket.getInputStream()); // 受信したバイトデータを文字ストリームに
+					br = new BufferedReader(sisr);// 文字ストリームをバッファリングする
+				}
+				catch (IOException e)
+				{
+					System.err.println("データ受信時にエラーが発生しました: " + e);
+				}
+			}
+
+			// 内部クラス Receiverのrunメソッド
+			public void run()
+			{
+
+				// 最初はハンデレベルと自分の色を受け取るための無限ループを行う
+				try
+				{
+					// 手番情報を受け取るための無限ループ
+					String myturninfo;
+					int myturn;
+					while (true)
+					{
+						myturninfo = br.readLine();// 受信データを一行分読み込む
+						if (myturninfo != null)
+						{// データを受信したら
+							myturn = Integer.parseInt(myturninfo);
+							System.out.println("クライアントは自分の手番が " + myturn + " 番目であると受信しました");
+							player.setTurnNum(myturn);
+							setVisible(true); // 対局画面を表示
+							Login.setVisible(false); //ログイン画面の非表示
+							break; // 無限ループを抜ける
+						}
+
+					}
+				}
+				catch (IOException e)
+				{
+					System.err.println("データ受信時にエラーが発生しました: " + e);
+				}
+				
+				WaitDisplay(TurnNum);
+
+				// 盤面を更新
+				UpdateDisplay();
+
+				try
+				{
+					String inputLine;
+					while (true)
+					{// データを受信し続ける
+						inputLine = br.readLine();// 受信データを一行分読み込む
+						
+						if (inputLine != null)
+						{// データを受信したら
+							
+							if(inputLine.equals("disconnect"))
+							{
+								System.out.println("対戦相手の接続が切れました。");
+								turnLabel.setForeground(Color.red);
+								turnLabel.setText("対戦相手の接続が切れました。");
+								win();
+								break;
+							}
+													
+							receiveMessage(inputLine);// データ受信用メソッドを呼び出す
+						}
+					}
+				}
+				catch (IOException e)
+				{
+					System.err.println("データ受信時にエラーが発生しました: " + e);
+				}
+			}
+		}
+	
+	public void WaitDisplay(int TurnNum)
+	{
+		// 自分が1番手の場合→ホスト
+		if (TurnNum == 1)
+		{
+			//はじめるかどうか
+		}
+		// それ以外の手番場合
+		else
+		{
+			//待機画面
+		}
+	}
+	
+	//盤面の更新
+	public void UpdateDisplay()
+	{
+		
+	}
+	
+	//ログイン画面
+	public void LoginInterface()
+	{
+		
+	}
+	
+	//結果画面
+	public void ResultInterface()
+	{
+		
+	}
+
+	public static void main(String[] args)
+	{
+		
+	}
+
+}
