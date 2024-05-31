@@ -1,0 +1,42 @@
+
+public class CPU
+{
+	private int cpulevel;
+	private Card card;
+	
+	//コンストラクタ
+	CPU(Card card)
+	{
+		card = this.card;
+		
+	}
+	
+	//記憶情報
+	public void MemoryInformation(int a)
+	{
+		
+	}
+	
+	//記憶するかどうかの関数
+	public boolean MemorySet()
+	{
+		boolean memoryflag = false;
+		
+		return memoryflag;
+	}
+	
+	//CPUの操作コマンド
+	public void Command()
+	{
+		
+	}
+	
+	//操作情報の送信
+	public int SendInformation()
+	{
+		int info = 0;
+		
+		return info; 
+	}
+
+}

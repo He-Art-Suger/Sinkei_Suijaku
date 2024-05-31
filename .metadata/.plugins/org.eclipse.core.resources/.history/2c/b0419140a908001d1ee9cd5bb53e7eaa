@@ -1,0 +1,508 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+public class Server
+{
+	private CPU []cpu = new CPU[3];
+	private int port; // サーバの待ち受けポート
+	private int connectnum = 0;
+	private int count = 1;
+	private boolean[] online = new boolean[4]; // 接続状態管理用配列
+	private PrintWriter[] out = new PrintWriter[4]; // データ送信用オブジェクト
+	private Receiver[] receiver = new Receiver[4]; // データ受信用オブジェクト
+	
+	//コンストラクタ
+	Server(int port)
+	{
+		this.port = port;
+		online[0] = false; 
+		online[1] = false;
+		online[2] = false;
+		online[3] = false;
+	}
+	
+	//情報の送受信を行う内部クラス
+	class Receiver extends Thread
+	{
+		private InputStreamReader sisr; // 受信データ用文字ストリーム
+		private BufferedReader br; // 文字ストリーム用のバッファ
+		private int TurnNum; // プレイヤ自身を識別するための番号（1～4）
+
+		// 内部クラスReceiverのコンストラクタ
+		Receiver(Socket socket, int TurnNum)
+		{
+			try
+			{
+				this.TurnNum = TurnNum; // プレイヤを識別するための番号を割り振る（1～4）
+				online[TurnNum - 1] = true;
+				sisr = new InputStreamReader(socket.getInputStream());
+				br = new BufferedReader(sisr);
+				System.out.println("クライアント" + TurnNum + " からデータを受信する準備ができました。");
+
+				out[TurnNum - 1].println(TurnNum);
+				out[TurnNum - 1].flush();
+			}
+			catch (IOException e)
+			{
+				System.err.println("データ受信時にエラーが発生しました: " + e);
+				online[TurnNum - 1] = false;
+			}
+		}
+
+		// 内部クラス Receiverのrunメソッド(start によりスレッドが動く)
+		public void run()
+		{
+			
+			try
+			{
+				String inputLine1;
+				boolean try1 = false;
+				
+				while(try1 == false)
+				{
+					
+					inputLine1 = br.readLine();
+					
+					if(Integer.parseInt(inputLine1) == -2)//再読み込み
+					{
+						if(connectnum == 1)
+						{
+							out[0].println(connectnum);
+							out[0].flush();
+						}
+						else if(connectnum == 2)
+						{
+							out[0].println(connectnum);
+							out[0].flush();
+							out[1].println(connectnum);
+							out[1].flush();
+						}
+						else if(connectnum == 3)
+						{
+							out[0].println(connectnum);
+							out[0].flush();
+							out[1].println(connectnum);
+							out[1].flush();
+							out[2].println(connectnum);
+							out[2].flush();
+						}
+						else if(connectnum == 4)
+						{
+							out[0].println(connectnum);
+							out[0].flush();
+							out[1].println(connectnum);
+							out[1].flush();
+							out[2].println(connectnum);
+							out[2].flush();
+							out[3].println(connectnum);
+							out[3].flush();
+						}
+					}
+					else if(Integer.parseInt(inputLine1) == 0)//決定
+					{
+						if(connectnum == 1)
+						{
+							out[0].println(0);
+							out[0].flush();
+						}
+						else if(connectnum == 2)
+						{
+							out[0].println(0);
+							out[0].flush();
+							out[1].println(0);
+							out[1].flush();
+						}
+						else if(connectnum == 3)
+						{
+							out[0].println(0);
+							out[0].flush();
+							out[1].println(0);
+							out[1].flush();
+							out[2].println(0);
+							out[2].flush();
+						}
+						else if(connectnum == 4)
+						{
+							out[0].println(0);
+							out[0].flush();
+							out[1].println(0);
+							out[1].flush();
+							out[2].println(0);
+							out[2].flush();
+							out[3].println(0);
+							out[3].flush();
+						}
+						try1 = true;;
+					}
+				}
+			}
+			catch (IOException e)
+			{
+				System.err.println("データ受信時にエラーが発生しました: " + e);
+			}
+			
+			
+			
+			if(TurnNum == 1 && connectnum != 4)
+			{
+				try
+				{
+					String inputLine2;
+					
+					if(connectnum <= 3)
+					{
+						inputLine2 = br.readLine();
+						
+						if(Integer.parseInt(inputLine2) == 101)
+						{
+							cpu[0] = new CPU(1, 1);
+							for(int i = 0; i < connectnum; i++)
+							{
+								out[i].println(101);
+								out[i].flush();
+							}
+						}
+						else if(Integer.parseInt(inputLine2) == 102)
+						{
+							cpu[0] = new CPU(1, 2);
+							for(int i = 0; i < connectnum; i++)
+							{
+								out[i].println(102);
+								out[i].flush();
+							}
+						}
+						else if(Integer.parseInt(inputLine2) == 103)
+						{
+							cpu[0] = new CPU(1, 3);
+							for(int i = 0; i < connectnum; i++)
+							{
+								out[i].println(103);
+								out[i].flush();
+							}
+						}
+						
+					}
+					
+					if(connectnum <= 2)
+					{
+						inputLine2 = br.readLine();
+						
+						if(Integer.parseInt(inputLine2) == 201)
+						{
+							cpu[1] = new CPU(2, 1);
+							for(int i = 0; i < connectnum; i++)
+							{
+								out[i].println(201);
+								out[i].flush();
+							}
+						}
+						else if(Integer.parseInt(inputLine2) == 202)
+						{
+							cpu[1] = new CPU(2, 2);
+							for(int i = 0; i < connectnum; i++)
+							{
+								out[i].println(202);
+								out[i].flush();
+							}
+						}
+						else if(Integer.parseInt(inputLine2) == 203)
+						{
+							cpu[1] = new CPU(2, 3);
+							for(int i = 0; i < connectnum; i++)
+							{
+								out[i].println(203);
+								out[i].flush();
+							}
+						}
+					}
+					
+					if(connectnum == 1)
+					{
+						inputLine2 = br.readLine();
+						
+						if(Integer.parseInt(inputLine2) == 301)
+						{
+							cpu[2] = new CPU(3, 1);
+							for(int i = 0; i < connectnum; i++)
+							{
+								out[i].println(301);
+								out[i].flush();
+							}
+						}
+						else if(Integer.parseInt(inputLine2) == 302)
+						{
+							cpu[2] = new CPU(3, 2);
+							for(int i = 0; i < connectnum; i++)
+							{
+								out[i].println(302);
+								out[i].flush();
+							}
+						}
+						else if(Integer.parseInt(inputLine2) == 303)
+						{
+							cpu[2] = new CPU(3, 3);
+							for(int i = 0; i < connectnum; i++)
+							{
+								out[i].println(303);
+								out[i].flush();
+							}
+						}
+					}
+					for(int i = 0; i < connectnum; i++)
+					{
+						out[i].println(-3);
+						out[i].flush();
+					}
+					
+					
+				}
+				catch (IOException e)
+				{
+					System.err.println("データ受信時にエラーが発生しました: " + e);
+				}
+			}
+			
+			try
+			{
+				String inputLine3;
+				boolean try2 = false;
+				while (try2 == false)
+				{// データを受信し続ける
+					inputLine3 = br.readLine();// データを一行分読み込む
+					
+					if(inputLine3.equals("GameSet"))
+					{	//ゲーム終了のメッセージを受け取ったら
+						System.out.println("クライアント" + TurnNum + "からメッセージGameSetが届きました．クライアントとの接続を切ります.");
+						// 接続状態をfalseにする
+						online[TurnNum - 1] = false;
+						// データ受信ストリームを閉じる（br, sisr は内部クラスReceiver のフィールド）
+						br.close();
+						sisr.close();
+						//ループを抜けてThreadを終了
+						try2 = true;
+					}
+					
+					if (inputLine3 != null)
+					{ // データを受信したら
+						System.out.println("クライアント" + TurnNum + "からメッセージ " + inputLine3 + " が届きました．他のクライアントへ転送します.");
+						
+						if(inputLine3.equals("start"))
+						{
+							for(int i = 0; i < connectnum; i++)
+							{
+								out[i].println("start"); // 受信データを対戦相手クライアントのバッファに書き出す
+								out[i].flush(); // 受信データを対戦相手へ転送する
+							}
+							int m, n;
+							for(m = 0; m < 100; m++)
+							{
+								inputLine3 = br.readLine();
+								for(int i = 0; i < connectnum; i++)
+								{
+									out[i].println(Integer.parseInt(inputLine3)); // 受信データを対戦相手クライアントのバッファに書き出す
+									out[i].flush(); // 受信データを対戦相手へ転送する
+								}
+							}
+							for(n = 0; n < 64; n++)
+							{
+								inputLine3 = br.readLine();
+								for(int i = 0; i < connectnum; i++)
+								{
+									out[i].println(Integer.parseInt(inputLine3)); // 受信データを対戦相手クライアントのバッファに書き出す
+									out[i].flush(); // 受信データを対戦相手へ転送する
+								}
+							}
+						}
+						else if(inputLine3.equals("shuffle"))
+						{
+							
+						}
+						else if(inputLine3.equals("trade"))
+						{
+							
+						}
+						else if(inputLine3.equals("normal"))
+						{
+							for(int i = 0; i < connectnum; i++)
+							{
+								out[i].println(inputLine3);
+								out[i].flush();
+							}
+							inputLine3 = br.readLine();
+							for(int j = 0; j < connectnum; j++)
+							{
+								out[j].println(Integer.parseInt(inputLine3)); // 受信データを対戦相手クライアントのバッファに書き出す
+								out[j].flush(); // 受信データを対戦相手へ転送する
+							}
+						}
+					}
+				}
+			}
+			catch (IOException e)
+			{ // 接続が切れたとき
+				System.err.println("クライアント" + TurnNum + "との接続が切れました．");
+				online[TurnNum - 1] = false;
+				// 対戦相手へ文字列 "disconnect" を転送する
+				if(TurnNum == 1)
+				{
+					if(connectnum >= 2)
+					{
+						out[1].println("disconnect");
+						out[1].flush();
+					}
+					if(connectnum >= 3)
+					{
+						out[2].println("disconnect");
+						out[2].flush();
+					}
+					if(connectnum == 4)
+					{
+						out[3].println("disconnect");
+						out[3].flush();
+					}
+				}
+				else if(TurnNum == 2)
+				{
+					out[0].println("disconnect");
+					out[0].flush();
+					if(connectnum >= 3)
+					{
+						out[2].println("disconnect");
+						out[2].flush();
+					}
+					if(connectnum == 4)
+					{
+						out[3].println("disconnect");
+						out[3].flush();
+					}
+				}
+				else if(TurnNum == 3)
+				{
+					out[0].println("disconnect");
+					out[0].flush();
+					out[1].println("disconnect");
+					out[1].flush();
+					if(connectnum == 4)
+					{
+						out[3].println("disconnect");
+						out[3].flush();
+					}
+				}
+				else if(TurnNum == 4)
+				{
+					out[0].println("disconnect");
+					out[0].flush();
+					out[1].println("disconnect");
+					out[1].flush();
+					out[2].println("disconnect");
+					out[2].flush();
+				}
+				System.exit(1);
+			}
+		}
+	}
+	
+	public void Timelimit()
+	{
+		
+	}
+	
+	// 2つのクライアントの接続を行う(サーバを起動する)メソッド acceptClient
+	public void acceptClient()
+	{
+		try
+		{
+			System.out.println("サーバが起動しました．");
+			ServerSocket ss = new ServerSocket(port); // サーバソケットを用意
+			Socket []socket = new Socket[4];
+			
+			/*
+			// クライアントと接続
+			for(int i = 0; i < 4; i++)
+			{
+				socket[i] = ss.accept(); // クライアントから新規接続を受け付けるまでプログラムは停止
+				System.out.println("クライアント" + (i + 1) + "と接続しました．");
+				out[i] = new PrintWriter(socket[i].getOutputStream(), true);// データ送信オブジェクトを用意
+				receiver[i] = new Receiver(socket[i], i + 1);// データ受信オブジェクト(スレッド)を用意
+				System.out.println(i + 1);
+				receiver[i].start(); 
+			}
+			
+		
+			for(int i = 0; i < 4; i++)
+			{
+				//receiver[i].start(); // クライアントからのデータ送信オブジェクト(スレッド)を起動
+			}
+			
+			for(int i = 0; i < 4; i++)
+			{
+				receiver[i].join();	//receiverのすべてのThreadが終わるまで待機。
+			}
+			
+			//ソケットを閉じる
+			for(int i = 0; i < 4; i++)
+			{
+				socket[i].close();
+			}
+			*/
+			
+			socket[0] = ss.accept(); // クライアントから新規接続を受け付けるまでプログラムは停止
+			System.out.println("クライアント" + 1 + "と接続しました．");
+			out[0] = new PrintWriter(socket[0].getOutputStream(), true);// データ送信オブジェクトを用意
+			receiver[0] = new Receiver(socket[0], 1);// データ受信オブジェクト(スレッド)を用意
+			receiver[0].start();
+			connectnum = 1;
+			socket[1] = ss.accept();		
+			System.out.println("クライアント" + 2 + "と接続しました．");
+			out[1] = new PrintWriter(socket[1].getOutputStream(), true);
+			receiver[1] = new Receiver(socket[1], 2);
+			receiver[1].start();
+			connectnum = 2;
+			socket[2] = ss.accept(); 
+			System.out.println("クライアント" + 3 + "と接続しました．");
+			out[2] = new PrintWriter(socket[2].getOutputStream(), true);
+			receiver[2] = new Receiver(socket[2], 3);
+			receiver[2].start();
+			connectnum = 3;
+			socket[3] = ss.accept();
+			System.out.println("クライアント" + 4 + "と接続しました．");
+			out[3] = new PrintWriter(socket[3].getOutputStream(), true);
+			receiver[3] = new Receiver(socket[3], 4);
+			receiver[3].start();
+			connectnum = 4;
+			
+			receiver[0].join();
+			receiver[1].join();
+			receiver[2].join();
+			receiver[3].join();
+			
+			socket[0].close();
+			socket[1].close();
+			socket[2].close();
+			socket[3].close();
+			
+			ss.close();
+			
+			//サーバのオブジェクトを初期化し、クライアントと再接続を行う
+			//reset();
+
+		}
+		catch (Exception e)
+		{
+			System.err.println("ソケット作成時にエラーが発生しました: " + e);
+		}
+	}
+	
+	
+	public static void main(String[] args)
+	{
+		
+		Server server = new Server(10000); // 待ち受けポート10000番でサーバオブジェクトを準備
+		server.acceptClient(); // クライアント受け入れを開始
+	}
+
+}

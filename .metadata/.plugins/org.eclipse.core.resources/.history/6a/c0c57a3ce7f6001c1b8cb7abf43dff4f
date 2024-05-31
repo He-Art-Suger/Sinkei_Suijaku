@@ -1,0 +1,34 @@
+import java.io.Serializable;
+
+public class Player implements Serializable
+{
+
+		private String myName = ""; //プレイヤ名
+		private int turnnum = 0;//手番番号(1～4)
+		
+		Player()
+		{
+			
+		}
+
+		// メソッド
+		
+		public void setName(String name)
+		{ // プレイヤ名を受付
+			myName = name;
+		}
+		public String getName()
+		{	// プレイヤ名を取得
+			return myName;
+		}
+		
+		public void setTurnNum(int turnnum)
+		{ // 神経衰弱の手番の受付
+			this.turnnum = turnnum;
+		}
+		public int getTurnNum()
+		{	// 希望ハンデレベルを取得
+			return turnnum;
+		}
+		
+	}

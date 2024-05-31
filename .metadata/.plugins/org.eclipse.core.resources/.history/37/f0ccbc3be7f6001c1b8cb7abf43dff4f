@@ -1,0 +1,43 @@
+
+public class Client
+{
+	private SS ss;// 神経衰弱クラスのオブジェクト
+	private Player player;
+	private int connectnum;
+	private int port;
+	private boolean connectflag;
+	
+	Client(SS ss, Player player)
+	{
+		this.ss = ss;
+		this.player = player;
+	}
+	
+	public void UpdateDisplay()
+	{
+		
+	}
+	
+	public boolean CheckConnect(int port)
+	{
+		
+		
+		return connectflag;
+	}
+	
+	public void SendInformation()
+	{
+		
+	}
+	
+	public void LoginInterface()
+	{
+		
+	}
+
+	public static void main(String[] args)
+	{
+		
+	}
+
+}

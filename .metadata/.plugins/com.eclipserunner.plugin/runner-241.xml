@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<runner version="1.0.0">
+    <category expanded="true" name="カテゴリーなし">
+        <launchConfiguration bookmark="false" defaultLaunchMode="run" name="Client"/>
+        <launchConfiguration bookmark="false" defaultLaunchMode="run" name="Client2"/>
+        <launchConfiguration bookmark="false" defaultLaunchMode="run" name="Client3"/>
+        <launchConfiguration bookmark="false" defaultLaunchMode="run" name="Client4"/>
+        <launchConfiguration bookmark="false" defaultLaunchMode="run" name="Client5"/>
+        <launchConfiguration bookmark="false" defaultLaunchMode="run" name="Server"/>
+        <launchConfiguration bookmark="false" defaultLaunchMode="run" name="a"/>
+        <launchConfiguration bookmark="false" defaultLaunchMode="run" name="aaa"/>
+        <launchConfiguration bookmark="false" defaultLaunchMode="run" name="server2"/>
+    </category>
+</runner>
